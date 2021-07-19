@@ -225,7 +225,7 @@ def sentiment_evaluate(request, surrogate=0):
     disp = disp.plot(cmap="Blues")
 
     context =  {
-        'accuracy':accuracyScore,
+        'accuracy':accuracyScore[surrogate],
         'data' : get_graph(),
         'fold' : range(int(fold_session)),
         'report': report,
@@ -240,8 +240,8 @@ def get_comment():
     service = build('youtube','v3',developerKey=api_key)
     channelId='UwsrzCVZAb8'
     
-    results = service.commentThreads().list(part='snippet',videoId=channelId, textFormat='plainText', order="relevance",
-    searchTerms="technology", maxResults=20).execute()
+    results = service.commentThreads().list(part='snippet',videoId=channelId, textFormat='plainText', order="time",
+    searchTerms="technology", maxResults=100).execute()
     for item in results['items']:
         comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
         comments.append(comment)

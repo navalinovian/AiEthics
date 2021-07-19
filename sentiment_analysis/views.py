@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib.sessions.models import Session
 from rest_framework import generics
 from .serializers import SentimentSerializer
-from .models import Sentiment
+from .models import Sentiment, Implement
 import pandas as pd
 import re, sys, json
 import numpy as np
@@ -54,7 +54,8 @@ def Preprocessing(comments):
     comments['stopword'] = stopword_result
     comments['preprocessed'] = regex_result
     return comments
-def Implement(dataFrame,test):
+
+def Implementing(dataFrame,test):
     tfidfv = TfidfVectorizer(min_df = 0.01 ,max_df = 0.3, stop_words='english')
     nb = MultinomialNB(alpha=0.8)
     label_types = dataFrame.label.value_counts().sort_index()
@@ -232,29 +233,53 @@ def sentiment_evaluate(request, surrogate=0):
     }
     return render(request, "evaluate.html", context)
 
-def youtube_api(request, **kwargs):
 
-    dictionary = request.session.get('for_evaluation')
-    data_json = json.loads(dictionary)
-    data =  pd.DataFrame.from_dict(data_json, orient='columns')
-
+def get_comment():
     comments = []
     api_key = 'AIzaSyCJPLzGVlcC8kLE6b7hDgdSQMHz-rn-hus'
     service = build('youtube','v3',developerKey=api_key)
     channelId='UwsrzCVZAb8'
+    
+    results = service.commentThreads().list(part='snippet',videoId=channelId, textFormat='plainText', order="relevance",
+    searchTerms="technology", maxResults=20).execute()
+    for item in results['items']:
+        comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
+        comments.append(comment)
+    
+    return comments
 
-    
-    if len(comments)<20 :
-        results = service.commentThreads().list(part='snippet',videoId=channelId, textFormat='plainText', order="relevance",
-        searchTerms="ai, technology, ethics", maxResults=20).execute()
-        for item in results['items']:
-            comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
-            comments.append(comment)
-    
-    sentiment = Implement(data, comments)
+def youtube_api(request, **kwargs):
+    dictionary = request.session.get('for_evaluation')
+    data_json = json.loads(dictionary)
+    data =  pd.DataFrame.from_dict(data_json, orient='columns')
+    state = True
+    database = np.array(data['text'])
+    temp= []
+    max_loop = 10
+
+    while state:
+        max_loop-=1
+        print(max_loop)
+        comments = get_comment()
+        comments = np.array(comments)
+        comments = comments[~np.isin(comments, database)]
+        temp = np.concatenate((temp, comments))
+        temp = np.unique(temp,axis=0)
+        if len(temp) >= 20 or max_loop<=0 :
+            state = False
+        
+    # sentiment = pd.DataFrame(Implementing(data, temp))
+    sentiment = Implementing(data, temp)
+    label = pd.DataFrame(sentiment)
+    print(label)
+    for index, row in label.iterrows():
+        Implement(
+                    text=temp[index],
+                    label=row[0]
+                ).save()
 
     context =  {
-        'data' : zip(comments,sentiment), 
+        'data' : zip(temp,sentiment), 
     }
     return render(request, "youtube_api.html", context)
 

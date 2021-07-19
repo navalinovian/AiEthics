@@ -4,6 +4,7 @@ from .views import SentimentView, sentiment_data_upload_view
 from .views import sentiment_data_view, sentiment_data_preprocessing, sentiment_evaluate, youtube_api
 
 urlpatterns = [
+    path('admin', admin.site.urls),
     # path('home', RoomView.as_view()),
     path('sentiment', SentimentView.as_view()),
     path('', sentiment_data_upload_view, name='upload'),

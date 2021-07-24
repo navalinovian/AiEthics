@@ -234,49 +234,68 @@ def sentiment_evaluate(request, surrogate=0):
     return render(request, "evaluate.html", context)
 
 
-def get_comment():
+def get_comment(pageToken):
     comments = []
     api_key = 'AIzaSyCJPLzGVlcC8kLE6b7hDgdSQMHz-rn-hus'
     service = build('youtube','v3',developerKey=api_key)
     channelId='UwsrzCVZAb8'
     
-    results = service.commentThreads().list(part='snippet',videoId=channelId, textFormat='plainText', order="time",
-    searchTerms="technology", maxResults=100).execute()
-    for item in results['items']:
+    response = service.commentThreads().list(part='snippet',videoId=channelId, textFormat='plainText', order="time",
+    searchTerms="ai", maxResults=100, pageToken=pageToken).execute()
+    for item in response['items']:
         comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
         comments.append(comment)
+    if 'nextPageToken' in response:
+        nextPageToken = response['nextPageToken']
+    else:
+        nextPageToken = '0'
+    result = {
+        'comments' : comments,
+        'nextPageToken' :nextPageToken
+    }
     
-    return comments
+    return result
 
 def youtube_api(request, **kwargs):
     dictionary = request.session.get('for_evaluation')
     data_json = json.loads(dictionary)
     data =  pd.DataFrame.from_dict(data_json, orient='columns')
+    data2 = pd.DataFrame(list(Implement.objects.all().values()))
+
     state = True
     database = np.array(data['text'])
+    TableImplement = np.array(data2['text'])
+    if 'text' in data2:
+        database = np.concatenate((database, TableImplement))
     temp= []
     max_loop = 10
+    next_page_token = ''
 
     while state:
-        max_loop-=1
-        print(max_loop)
-        comments = get_comment()
-        comments = np.array(comments)
+        print(next_page_token)
+        results = get_comment(next_page_token)
+        comments = np.array(results['comments'])
         comments = comments[~np.isin(comments, database)]
         temp = np.concatenate((temp, comments))
         temp = np.unique(temp,axis=0)
-        if len(temp) >= 20 or max_loop<=0 :
+        if len(temp) >= 20 or max_loop<=0 or results['nextPageToken']=='0' :
             state = False
-        
-    # sentiment = pd.DataFrame(Implementing(data, temp))
-    sentiment = Implementing(data, temp)
-    label = pd.DataFrame(sentiment)
-    print(label)
-    for index, row in label.iterrows():
-        Implement(
-                    text=temp[index],
-                    label=row[0]
-                ).save()
+        else:
+            next_page_token = results['nextPageToken']
+
+    if len(temp)==0:
+        temp = np.array(['Data Kosong'])
+        sentiment = '-'
+    else:
+        sentiment = pd.DataFrame(Implementing(data, temp))
+        sentiment = Implementing(data, temp)
+        label = pd.DataFrame(sentiment)
+        print(label)
+        for index, row in label.iterrows():
+            Implement(
+                        text=temp[index],
+                        label=row[0]
+                    ).save()
 
     context =  {
         'data' : zip(temp,sentiment), 

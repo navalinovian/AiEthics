@@ -1,4 +1,4 @@
-# Sentiment Analysiis of AiEthics
+# Sentiment Analysis of AiEthics
 
-1. Install all libraries in requirement.txt
+1. Install all libraries in requirements.txt
 2. Install openpypxl

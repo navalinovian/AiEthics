@@ -5,4 +5,5 @@
     `pip install -U pip setuptools wheel`
     `pip install -U spacy`
     `python -m spacy download en_core_web_sm`
-4. Install openpypxl
+3. `pip install openpyxl`
+4. `pip install django-bootstrap4`
